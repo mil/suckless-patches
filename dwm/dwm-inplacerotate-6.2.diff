@@ -1,0 +1,100 @@
+From 78ae9e1513e5c9c91f7ca89f421e7aa71f88202f Mon Sep 17 00:00:00 2001
+From: Miles Alan <m@milesalan.com>
+Date: Tue, 14 Jan 2020 23:14:18 -0600
+Subject: [PATCH] Add inplacerotate fn to rotate master/stack clients inplace
+
+Rotates all client xor stack windows (depending on focus) CW (+1) or CCW (-1).
+Focus position stays 'in-place' so the area of the screen you are focused
+on remains unchanged.
+
+Mod + Shift + {J,K} to rotate {CW,CCW}
+---
+ config.def.h |  2 ++
+ dwm.c        | 54 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 56 insertions(+)
+
+diff --git a/config.def.h b/config.def.h
+index 1c0b587..0f846ab 100644
+--- a/config.def.h
++++ b/config.def.h
+@@ -66,6 +66,8 @@ static Key keys[] = {
+ 	{ MODKEY,                       XK_b,      togglebar,      {0} },
+ 	{ MODKEY,                       XK_j,      focusstack,     {.i = +1 } },
+ 	{ MODKEY,                       XK_k,      focusstack,     {.i = -1 } },
++	{ MODKEY|ShiftMask,             XK_j,      inplacerotate,  {.i = +1} },
++	{ MODKEY|ShiftMask,             XK_k,      inplacerotate,  {.i = -1} },
+ 	{ MODKEY,                       XK_i,      incnmaster,     {.i = +1 } },
+ 	{ MODKEY,                       XK_d,      incnmaster,     {.i = -1 } },
+ 	{ MODKEY,                       XK_h,      setmfact,       {.f = -0.05} },
+diff --git a/dwm.c b/dwm.c
+index 4465af1..73c699b 100644
+--- a/dwm.c
++++ b/dwm.c
+@@ -175,6 +175,7 @@ static int gettextprop(Window w, Atom atom, char *text, unsigned int size);
+ static void grabbuttons(Client *c, int focused);
+ static void grabkeys(void);
+ static void incnmaster(const Arg *arg);
++static void inplacerotate(const Arg *arg);
+ static void keypress(XEvent *e);
+ static void killclient(const Arg *arg);
+ static void manage(Window w, XWindowAttributes *wa);
+@@ -2147,3 +2148,56 @@ main(int argc, char *argv[])
+ 	XCloseDisplay(dpy);
+ 	return EXIT_SUCCESS;
+ }
++
++void
++insertclient(Client *item, Client *insertItem, int after) {
++	Client *c;
++	if (item == NULL || insertItem == NULL || item == insertItem) return;
++	detach(insertItem);
++	if (!after && selmon->clients == item) {
++		attach(insertItem);
++		return;
++	}
++	if (after) {
++		c = item;
++	} else {
++		for (c = selmon->clients; c; c = c->next) { if (c->next == item) break; }
++	}
++	insertItem->next = c->next;
++	c->next = insertItem;
++}
++
++void
++inplacerotate(const Arg *arg)
++{
++	if(!selmon->sel || (selmon->sel->isfloating && !arg->f)) return;
++
++	unsigned int selidx = 0, i = 0;
++	Client *c = NULL, *stail = NULL, *mhead = NULL, *mtail = NULL, *shead = NULL;
++
++	// Shift client
++	for (c = selmon->clients; c; c = c->next) {
++		if (ISVISIBLE(c) && !(c->isfloating)) {
++		if (selmon->sel == c) { selidx = i; }
++		if (i == selmon->nmaster - 1) { mtail = c; }
++		if (i == selmon->nmaster) { shead = c; }
++		if (mhead == NULL) { mhead = c; }
++		stail = c;
++		i++;
++		}
++	}
++	if (arg->i < 0 && selidx >= selmon->nmaster) insertclient(stail, shead, 1);
++	if (arg->i > 0 && selidx >= selmon->nmaster) insertclient(shead, stail, 0);
++	if (arg->i < 0 && selidx < selmon->nmaster)  insertclient(mtail, mhead, 1);
++	if (arg->i > 0 && selidx < selmon->nmaster)  insertclient(mhead, mtail, 0);
++
++	// Restore focus position
++	i = 0;
++	for (c = selmon->clients; c; c = c->next) {
++		if (!ISVISIBLE(c) || (c->isfloating)) continue;
++		if (i == selidx) { focus(c); break; }
++		i++;
++	}
++	arrange(selmon);
++	focus(c);
++}
+-- 
+2.23.1
+
