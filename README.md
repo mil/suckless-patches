@@ -10,7 +10,7 @@ Here's my collection of custom patches for various [Suckless](http://suckless.or
 **dwm**
 
 - [Dwm bartabgroups](https://dwm.suckless.org/patches/bartabgroups): Show two seperate tab groups (based on nmaster) when tiling split at mfact location.
-- [Dwm dragmfact](https://dwm.suckless.org/patches/dragmfact): Allows you to use the mouse to resize the mfact (split propotion) like in i3.
+- [Dwm dragmfact](https://dwm.suckless.org/patches/dragmfact): Allows you to use the mouse to resize the mfact (split proportion) like in i3.
 - [Dwm inplacerotate](https://dwm.suckless.org/patches/inplacerotate): Rotate all clients in the master or the stack.
 - [Dwm transferall](https://dwm.suckless.org/patches/transfer/): Swap the master and the stack and adjust nmaster accordingly.
 - [Dwm transfer](https://dwm.suckless.org/patches/transfer/): Transfer the currently focused client between the master & stack adjusting for nmaster accordingly.
@@ -21,5 +21,5 @@ Here's my collection of custom patches for various [Suckless](http://suckless.or
 
 **surf**
 
-- [Surf externalpipe](https://surf.suckless.org/patches/externalpipe/): Pipe current webpage source through external command on keypress. See [blog post]().
+- [Surf externalpipe](https://surf.suckless.org/patches/externalpipe/): Pipe current webpage source through external command on keypress. See [blog post](https://milesalan.com/notes/surf-externalpipe-patch-browsing-via-dmenu/).
 - [Surf externalpipe-signal](https://surf.suckless.org/patches/externalpipe-signal): Allows utilizing an externalpipe command on the SIGUSR1 signal.
