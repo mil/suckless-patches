@@ -1,0 +1,71 @@
+From b8bdd00501e86621ec7a24d34dfc6d8c95d934b3 Mon Sep 17 00:00:00 2001
+From: Miles Alan <m@milesalan.com>
+Date: Fri, 6 Mar 2020 21:39:43 -0600
+Subject: [PATCH] Add -idx option to specify the initial index where the
+ selection should start
+
+---
+ dmenu.1 | 5 +++++
+ dmenu.c | 9 +++++++++
+ 2 files changed, 14 insertions(+)
+
+diff --git a/dmenu.1 b/dmenu.1
+index 323f93c..1146a73 100644
+--- a/dmenu.1
++++ b/dmenu.1
+@@ -22,6 +22,8 @@ dmenu \- dynamic menu
+ .IR color ]
+ .RB [ \-w
+ .IR windowid ]
++.RB [ \-idx
++.IR index ]
+ .P
+ .BR dmenu_run " ..."
+ .SH DESCRIPTION
+@@ -80,6 +82,9 @@ prints version information to stdout, then exits.
+ .TP
+ .BI \-w " windowid"
+ embed into windowid.
++.TP
++.BI \-idx " index"
++specify the initial selection index number.
+ .SH USAGE
+ dmenu is completely controlled by the keyboard.  Items are selected using the
+ arrow keys, page up, page down, home, and end.
+diff --git a/dmenu.c b/dmenu.c
+index 6b8f51b..dd19e68 100644
+--- a/dmenu.c
++++ b/dmenu.c
+@@ -44,6 +44,7 @@ static struct item *items = NULL;
+ static struct item *matches, *matchend;
+ static struct item *prev, *curr, *next, *sel;
+ static int mon = -1, screen;
++static int initialindex;
+ 
+ static Atom clip, utf8;
+ static Display *dpy;
+@@ -650,6 +651,12 @@ setup(void)
+ 	inputw = MIN(inputw, mw/3);
+ 	match();
+ 
++	for (i = 0; i < initialindex - 1; i++)
++		if (sel->right)
++			sel = sel->right;
++	  else
++			break;
++
+ 	/* create menu window */
+ 	swa.override_redirect = True;
+ 	swa.background_pixel = scheme[SchemeNorm][ColBg].pixel;
+@@ -726,6 +733,8 @@ main(int argc, char *argv[])
+ 			colors[SchemeSel][ColFg] = argv[++i];
+ 		else if (!strcmp(argv[i], "-w"))   /* embedding window id */
+ 			embed = argv[++i];
++		else if (!strcmp(argv[i], "-idx")) /* initial index selection */
++			initialindex = atoi(argv[++i]);
+ 		else
+ 			usage();
+ 
+-- 
+2.23.1
+
