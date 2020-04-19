@@ -6,7 +6,7 @@ Here's my collection of custom patches for various [Suckless](http://suckless.or
 
 - [Dmenu highlight](https://tools.suckless.org/dmenu/patches/highlight): Show the individual characters of matched text in a different (highlighted) color.
 - [Dmenu numbers](https://tools.suckless.org/dmenu/patches/numbers): Show the number of matched and total number of entries in the top right corner of dmenu.
-- [Dmenu initialindex](./dmenu/dmenu-initialindex-4.9.diff): Start with an initial index based on command line flag.
+- [Dmenu initialindex](https://github.com/mil/suckless-patches/blob/master/dmenu/dmenu-initialindex-4.9.diff): Start with an initial index based on command line flag.
 
 **dwm**
 
