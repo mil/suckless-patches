@@ -1,33 +1,36 @@
-From 78ae9e1513e5c9c91f7ca89f421e7aa71f88202f Mon Sep 17 00:00:00 2001
+From 75012a6ab9cc1b6c319af7f4ae7d682b16a66ce3 Mon Sep 17 00:00:00 2001
 From: Miles Alan <m@milesalan.com>
-Date: Tue, 14 Jan 2020 23:14:18 -0600
-Subject: [PATCH] Add inplacerotate fn to rotate master/stack clients inplace
+Date: Sun, 26 Apr 2020 16:05:43 -0500
+Subject: [PATCH] Add inplacerotate fn to rotate all, master, or stacks clients
+ inplace
 
-Rotates all client xor stack windows (depending on focus) CW (+1) or CCW (-1).
+CW (+2) or CCW (-2) Rotates all windows.
+CW (+1) or CCW (-1) Rotates master xor stack windows (depending on focus).
+
 Focus position stays 'in-place' so the area of the screen you are focused
 on remains unchanged.
-
-Mod + Shift + {J,K} to rotate {CW,CCW}
 ---
- config.def.h |  2 ++
- dwm.c        | 54 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 56 insertions(+)
+ config.def.h |  4 ++++
+ dwm.c        | 59 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 63 insertions(+)
 
 diff --git a/config.def.h b/config.def.h
-index 1c0b587..0f846ab 100644
+index 1c0b587..9bcb792 100644
 --- a/config.def.h
 +++ b/config.def.h
-@@ -66,6 +66,8 @@ static Key keys[] = {
+@@ -66,6 +66,10 @@ static Key keys[] = {
  	{ MODKEY,                       XK_b,      togglebar,      {0} },
  	{ MODKEY,                       XK_j,      focusstack,     {.i = +1 } },
  	{ MODKEY,                       XK_k,      focusstack,     {.i = -1 } },
 +	{ MODKEY|ShiftMask,             XK_j,      inplacerotate,  {.i = +1} },
 +	{ MODKEY|ShiftMask,             XK_k,      inplacerotate,  {.i = -1} },
++	{ MODKEY|ShiftMask,             XK_h,      inplacerotate,  {.i = +2} },
++	{ MODKEY|ShiftMask,             XK_l,      inplacerotate,  {.i = -2} },
  	{ MODKEY,                       XK_i,      incnmaster,     {.i = +1 } },
  	{ MODKEY,                       XK_d,      incnmaster,     {.i = -1 } },
  	{ MODKEY,                       XK_h,      setmfact,       {.f = -0.05} },
 diff --git a/dwm.c b/dwm.c
-index 4465af1..73c699b 100644
+index 4465af1..3930680 100644
 --- a/dwm.c
 +++ b/dwm.c
 @@ -175,6 +175,7 @@ static int gettextprop(Window w, Atom atom, char *text, unsigned int size);
@@ -38,7 +41,7 @@ index 4465af1..73c699b 100644
  static void keypress(XEvent *e);
  static void killclient(const Arg *arg);
  static void manage(Window w, XWindowAttributes *wa);
-@@ -2147,3 +2148,56 @@ main(int argc, char *argv[])
+@@ -2147,3 +2148,61 @@ main(int argc, char *argv[])
  	XCloseDisplay(dpy);
  	return EXIT_SUCCESS;
  }
@@ -69,7 +72,7 @@ index 4465af1..73c699b 100644
 +	unsigned int selidx = 0, i = 0;
 +	Client *c = NULL, *stail = NULL, *mhead = NULL, *mtail = NULL, *shead = NULL;
 +
-+	// Shift client
++	// Determine positionings for insertclient
 +	for (c = selmon->clients; c; c = c->next) {
 +		if (ISVISIBLE(c) && !(c->isfloating)) {
 +		if (selmon->sel == c) { selidx = i; }
@@ -80,10 +83,15 @@ index 4465af1..73c699b 100644
 +		i++;
 +		}
 +	}
-+	if (arg->i < 0 && selidx >= selmon->nmaster) insertclient(stail, shead, 1);
-+	if (arg->i > 0 && selidx >= selmon->nmaster) insertclient(shead, stail, 0);
-+	if (arg->i < 0 && selidx < selmon->nmaster)  insertclient(mtail, mhead, 1);
-+	if (arg->i > 0 && selidx < selmon->nmaster)  insertclient(mhead, mtail, 0);
++
++	// All clients rotate
++	if (arg->i == 2) insertclient(selmon->clients, stail, 0);
++	if (arg->i == -2) insertclient(stail, selmon->clients, 1);
++	// Stack xor master rotate
++	if (arg->i == -1 && selidx >= selmon->nmaster) insertclient(stail, shead, 1);
++	if (arg->i == 1 && selidx >= selmon->nmaster) insertclient(shead, stail, 0);
++	if (arg->i == -1 && selidx < selmon->nmaster)  insertclient(mtail, mhead, 1);
++	if (arg->i == 1 && selidx < selmon->nmaster)  insertclient(mhead, mtail, 0);
 +
 +	// Restore focus position
 +	i = 0;
