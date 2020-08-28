@@ -5,6 +5,8 @@ usage() {
   echo "Copies patches from one folder to another using patch-convert.sh"
   echo "Saves patches with correct filenames"
   echo "(e.g. for p0 with patch- prefix; for p1 stripping patch- prefix)"
+  echo "Usage:"
+  echo "  ./patch-foldersync.sh fromdir todir"
 }
 
 copier() {
