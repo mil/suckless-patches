@@ -1,0 +1,751 @@
+From 113114035281b9201f8d2a603a67b8aabd064741 Mon Sep 17 00:00:00 2001
+From: Miles Alan <m@milesalan.com>
+Date: Mon, 31 Aug 2020 18:59:42 -0500
+Subject: [PATCH] Multilayout patch - experimental, quick, and dirty
+
+Abstract layouts to apply on tag level as well as window level. E.g. makes
+WM into a short 2-level tree.
+---
+ config.def.h |  42 +++--
+ dwm.c        | 466 ++++++++++++++++++++++++++++++++++++++++++++-------
+ 2 files changed, 437 insertions(+), 71 deletions(-)
+
+diff --git a/config.def.h b/config.def.h
+index 1c0b587..ec52808 100644
+--- a/config.def.h
++++ b/config.def.h
+@@ -32,23 +32,24 @@ static const Rule rules[] = {
+ };
+ 
+ /* layout(s) */
+-static const float mfact     = 0.55; /* factor of master area size [0.05..0.95] */
++static const float mfact     = 0.50; /* factor of master area size [0.05..0.95] */
+ static const int nmaster     = 1;    /* number of clients in master area */
+-static const int resizehints = 1;    /* 1 means respect size hints in tiled resizals */
++static const int resizehints = 0;    /* 1 means respect size hints in tiled resizals */
+ 
+ static const Layout layouts[] = {
+-	/* symbol     arrange function */
+-	{ "[]=",      tile },    /* first entry is default */
+-	{ "><>",      NULL },    /* no layout function means floating behavior */
+-	{ "[M]",      monocle },
++	{ "H",      multilayouthoriz },    /* first entry is default */
++	{ "V",      multilayoutvert },    /* no layout function means floating behavior */
++	{ "M",      multilayoutmonocle },
++	{ "F",      multilayoutfloat},
++	{ "T",      multilayouttile},
+ };
+ 
+ /* key definitions */
+ #define MODKEY Mod1Mask
+ #define TAGKEYS(KEY,TAG) \
+-	{ MODKEY,                       KEY,      view,           {.ui = 1 << TAG} }, \
++	{ MODKEY,                       KEY,      comboview,           {.ui = 1 << TAG} }, \
+ 	{ MODKEY|ControlMask,           KEY,      toggleview,     {.ui = 1 << TAG} }, \
+-	{ MODKEY|ShiftMask,             KEY,      tag,            {.ui = 1 << TAG} }, \
++	{ MODKEY|ShiftMask,             KEY,      combotag,            {.ui = 1 << TAG} }, \
+ 	{ MODKEY|ControlMask|ShiftMask, KEY,      toggletag,      {.ui = 1 << TAG} },
+ 
+ /* helper for spawning shell commands in the pre dwm-5.0 fashion */
+@@ -64,8 +65,12 @@ static Key keys[] = {
+ 	{ MODKEY,                       XK_p,      spawn,          {.v = dmenucmd } },
+ 	{ MODKEY|ShiftMask,             XK_Return, spawn,          {.v = termcmd } },
+ 	{ MODKEY,                       XK_b,      togglebar,      {0} },
+-	{ MODKEY,                       XK_j,      focusstack,     {.i = +1 } },
+-	{ MODKEY,                       XK_k,      focusstack,     {.i = -1 } },
++
++	{ MODKEY,                       XK_j,      focusstacktag,  {.i = +1 } },
++	{ MODKEY,                       XK_k,      focusstacktag,  {.i = -1 } },
++	{ MODKEY|ShiftMask,             XK_j,      focusstack,     {.i = +1 } },
++	{ MODKEY|ShiftMask,             XK_k,      focusstack,     {.i = -1 } },
++
+ 	{ MODKEY,                       XK_i,      incnmaster,     {.i = +1 } },
+ 	{ MODKEY,                       XK_d,      incnmaster,     {.i = -1 } },
+ 	{ MODKEY,                       XK_h,      setmfact,       {.f = -0.05} },
+@@ -73,9 +78,20 @@ static Key keys[] = {
+ 	{ MODKEY,                       XK_Return, zoom,           {0} },
+ 	{ MODKEY,                       XK_Tab,    view,           {0} },
+ 	{ MODKEY|ShiftMask,             XK_c,      killclient,     {0} },
+-	{ MODKEY,                       XK_t,      setlayout,      {.v = &layouts[0]} },
+-	{ MODKEY,                       XK_f,      setlayout,      {.v = &layouts[1]} },
+-	{ MODKEY,                       XK_m,      setlayout,      {.v = &layouts[2]} },
++
++
++	{ MODKEY,                       XK_r,      setlayouttag,   {.i = 0 } },
++	{ MODKEY,                       XK_v,      setlayouttag,   {.i = 1 } },
++	{ MODKEY,                       XK_m,      setlayouttag,   {.i = 2 } },
++	{ MODKEY,                       XK_f,      setlayouttag,   {.i = 3 } },
++	{ MODKEY,                       XK_t,      setlayouttag,   {.i = 4 } },
++
++	{ MODKEY|ShiftMask,             XK_r,      setlayout,      {.v = &layouts[0]} },
++	{ MODKEY|ShiftMask,             XK_v,      setlayout,      {.v = &layouts[1]} },
++	{ MODKEY|ShiftMask,             XK_m,      setlayout,      {.v = &layouts[2]} },
++	{ MODKEY|ShiftMask,             XK_f,      setlayout,      {.v = &layouts[3]} },
++	{ MODKEY|ShiftMask,             XK_t,      setlayout,      {.v = &layouts[4]} },
++
+ 	{ MODKEY,                       XK_space,  setlayout,      {0} },
+ 	{ MODKEY|ShiftMask,             XK_space,  togglefloating, {0} },
+ 	{ MODKEY,                       XK_0,      view,           {.ui = ~0 } },
+diff --git a/dwm.c b/dwm.c
+index 4465af1..519237d 100644
+--- a/dwm.c
++++ b/dwm.c
+@@ -97,6 +97,7 @@ struct Client {
+ 	Client *snext;
+ 	Monitor *mon;
+ 	Window win;
++	Client *mirrorclients[9];
+ };
+ 
+ typedef struct {
+@@ -108,11 +109,11 @@ typedef struct {
+ 
+ typedef struct {
+ 	const char *symbol;
+-	void (*arrange)(Monitor *);
++	void (*arrange)(Monitor *, int *lttag, int ltx, int lty, int ltw, int lth);
+ } Layout;
+ 
+ struct Monitor {
+-	char ltsymbol[16];
++	char ltsymbol[100];
+ 	float mfact;
+ 	int nmaster;
+ 	int num;
+@@ -130,6 +131,7 @@ struct Monitor {
+ 	Monitor *next;
+ 	Window barwin;
+ 	const Layout *lt[2];
++	unsigned int taglayouts[9];
+ };
+ 
+ typedef struct {
+@@ -169,6 +171,7 @@ static void focus(Client *c);
+ static void focusin(XEvent *e);
+ static void focusmon(const Arg *arg);
+ static void focusstack(const Arg *arg);
++static void focusstacktag(const Arg *arg);
+ static int getrootptr(int *x, int *y);
+ static long getstate(Window w);
+ static int gettextprop(Window w, Atom atom, char *text, unsigned int size);
+@@ -180,7 +183,6 @@ static void killclient(const Arg *arg);
+ static void manage(Window w, XWindowAttributes *wa);
+ static void mappingnotify(XEvent *e);
+ static void maprequest(XEvent *e);
+-static void monocle(Monitor *m);
+ static void motionnotify(XEvent *e);
+ static void movemouse(const Arg *arg);
+ static Client *nexttiled(Client *c);
+@@ -200,6 +202,7 @@ static void setclientstate(Client *c, long state);
+ static void setfocus(Client *c);
+ static void setfullscreen(Client *c, int fullscreen);
+ static void setlayout(const Arg *arg);
++static void setlayouttag(const Arg *arg);
+ static void setmfact(const Arg *arg);
+ static void setup(void);
+ static void seturgent(Client *c, int urg);
+@@ -208,7 +211,6 @@ static void sigchld(int unused);
+ static void spawn(const Arg *arg);
+ static void tag(const Arg *arg);
+ static void tagmon(const Arg *arg);
+-static void tile(Monitor *);
+ static void togglebar(const Arg *arg);
+ static void togglefloating(const Arg *arg);
+ static void toggletag(const Arg *arg);
+@@ -234,6 +236,19 @@ static int xerrordummy(Display *dpy, XErrorEvent *ee);
+ static int xerrorstart(Display *dpy, XErrorEvent *ee);
+ static void zoom(const Arg *arg);
+ 
++static void mlupdatebarsymbol();
++static void mlunfocusemptytags();
++static void multilayoutmonocle(Monitor *m, int *lttag, int ltx, int lty, int ltw, int lth);
++static void multilayouthoriz(Monitor *m, int *lttag, int ltx, int lty, int ltw, int lth);
++static void multilayoutvert(Monitor *m, int *lttag, int ltx, int lty, int ltw, int lth);
++static void multilayoutfloat(Monitor *m, int *lttag, int ltx, int lty, int ltw, int lth);
++static void multilayouttile(Monitor *m, int *lttag, int ltx, int lty, int ltw, int lth);
++
++static void keyrelease(XEvent *e);
++static void combotag(const Arg *arg);
++static void comboview(const Arg *arg);
++
++
+ /* variables */
+ static const char broken[] = "broken";
+ static char stext[256];
+@@ -245,6 +260,7 @@ static int (*xerrorxlib)(Display *, XErrorEvent *);
+ static unsigned int numlockmask = 0;
+ static void (*handler[LASTEvent]) (XEvent *) = {
+ 	[ButtonPress] = buttonpress,
++	[ButtonRelease] = keyrelease,
+ 	[ClientMessage] = clientmessage,
+ 	[ConfigureRequest] = configurerequest,
+ 	[ConfigureNotify] = configurenotify,
+@@ -252,6 +268,7 @@ static void (*handler[LASTEvent]) (XEvent *) = {
+ 	[EnterNotify] = enternotify,
+ 	[Expose] = expose,
+ 	[FocusIn] = focusin,
++	[KeyRelease] = keyrelease,
+ 	[KeyPress] = keypress,
+ 	[MappingNotify] = mappingnotify,
+ 	[MapRequest] = maprequest,
+@@ -275,6 +292,42 @@ static Window root, wmcheckwin;
+ struct NumTags { char limitexceeded[LENGTH(tags) > 31 ? -1 : 1]; };
+ 
+ /* function implementations */
++static int combo = 0;
++
++void
++keyrelease(XEvent *e) {
++	combo = 0;
++}
++
++void
++combotag(const Arg *arg) {
++	if(selmon->sel && arg->ui & TAGMASK) {
++		if (combo) {
++			selmon->sel->tags |= arg->ui & TAGMASK;
++		} else {
++			combo = 1;
++			selmon->sel->tags = arg->ui & TAGMASK;
++		}
++		focus(NULL);
++		arrange(selmon);
++	}
++}
++
++void
++comboview(const Arg *arg) {
++	unsigned newtags = arg->ui & TAGMASK;
++	if (combo) {
++		selmon->tagset[selmon->seltags] |= newtags;
++	} else {
++		selmon->seltags ^= 1;	/*toggle tagset*/
++		combo = 1;
++		if (newtags)
++			selmon->tagset[selmon->seltags] = newtags;
++	}
++	focus(NULL);
++	arrange(selmon);
++}
++
+ void
+ applyrules(Client *c)
+ {
+@@ -308,7 +361,9 @@ applyrules(Client *c)
+ 		XFree(ch.res_class);
+ 	if (ch.res_name)
+ 		XFree(ch.res_name);
+-	c->tags = c->tags & TAGMASK ? c->tags & TAGMASK : c->mon->tagset[c->mon->seltags];
++	c->tags = selmon->sel ? selmon->sel->tags : (
++    c->tags & TAGMASK ? c->tags & TAGMASK : c->mon->tagset[c->mon->seltags]
++  );
+ }
+ 
+ int
+@@ -384,6 +439,8 @@ arrange(Monitor *m)
+ 		showhide(m->stack);
+ 	else for (m = mons; m; m = m->next)
+ 		showhide(m->stack);
++
++	mlunfocusemptytags();
+ 	if (m) {
+ 		arrangemon(m);
+ 		restack(m);
+@@ -394,9 +451,10 @@ arrange(Monitor *m)
+ void
+ arrangemon(Monitor *m)
+ {
+-	strncpy(m->ltsymbol, m->lt[m->sellt]->symbol, sizeof m->ltsymbol);
++  mlupdatebarsymbol();
++
+ 	if (m->lt[m->sellt]->arrange)
+-		m->lt[m->sellt]->arrange(m);
++		m->lt[m->sellt]->arrange(m, NULL, m->wx, m->wy, m->ww, m->wh);
+ }
+ 
+ void
+@@ -701,6 +759,8 @@ drawbar(Monitor *m)
+ 	unsigned int i, occ = 0, urg = 0;
+ 	Client *c;
+ 
++  mlupdatebarsymbol();
++
+ 	/* draw status first so it can be overdrawn by tags later */
+ 	if (m == selmon) { /* status is only drawn on selected monitor */
+ 		drw_setscheme(drw, scheme[SchemeNorm]);
+@@ -829,6 +889,30 @@ focusmon(const Arg *arg)
+ 	focus(NULL);
+ }
+ 
++Client*
++nextc()
++{
++	Client *c = NULL, *i;
++	for (c = selmon->sel->next; c && !ISVISIBLE(c); c = c->next);
++	if (!c)
++		for (c = selmon->clients; c && !ISVISIBLE(c); c = c->next);
++	return c;
++}
++
++Client*
++prevc() {
++	Client *c = NULL, *i;
++
++	for (i = selmon->clients; i != selmon->sel; i = i->next)
++		if (ISVISIBLE(i))
++			c = i;
++	if (!c)
++		for (; i; i = i->next)
++			if (ISVISIBLE(i))
++				c = i;
++	return c;
++}
++
+ void
+ focusstack(const Arg *arg)
+ {
+@@ -836,19 +920,46 @@ focusstack(const Arg *arg)
+ 
+ 	if (!selmon->sel)
+ 		return;
++	int curtag = selmon->sel->tags;
++
+ 	if (arg->i > 0) {
+-		for (c = selmon->sel->next; c && !ISVISIBLE(c); c = c->next);
+-		if (!c)
+-			for (c = selmon->clients; c && !ISVISIBLE(c); c = c->next);
++		c = nextc();
++		while (c && c->tags == curtag) {
++  		selmon->sel = c; c = nextc();
++	  }
+ 	} else {
+-		for (i = selmon->clients; i != selmon->sel; i = i->next)
+-			if (ISVISIBLE(i))
+-				c = i;
+-		if (!c)
+-			for (; i; i = i->next)
+-				if (ISVISIBLE(i))
+-					c = i;
++		c = prevc();
++		while (c && c->tags == curtag) {
++		  selmon->sel = c; c = prevc();
++		}
++	}
++	if (c) {
++		focus(c);
++		restack(selmon);
+ 	}
++}
++
++void
++focusstacktag(const Arg *arg)
++{
++	Client *c;
++
++	if (!selmon->sel)
++		return;
++	int curtag = selmon->sel->tags;
++
++	if (arg->i > 0) {
++		c = nextc();
++		while (c && c->tags != curtag) {
++  		selmon->sel = c; c = nextc();
++	  }
++	} else {
++		c = prevc();
++		while (c && c->tags != curtag) {
++		  selmon->sel = c; c = prevc();
++		}
++	}
++
+ 	if (c) {
+ 		focus(c);
+ 		restack(selmon);
+@@ -1029,11 +1140,15 @@ manage(Window w, XWindowAttributes *wa)
+ 	c->w = c->oldw = wa->width;
+ 	c->h = c->oldh = wa->height;
+ 	c->oldbw = wa->border_width;
++	//c->mirrorclients = ecalloc(9, sizeof(Client*));
++	for (int i = 0; i < 10; i++) {
++	  //c->mirrorclients[i] = NULL;
++	}
+ 
+ 	updatetitle(c);
+ 	if (XGetTransientForHint(dpy, w, &trans) && (t = wintoclient(trans))) {
+ 		c->mon = t->mon;
+-		c->tags = t->tags;
++		c->tags = selmon->sel ? selmon->sel->tags : t->tags;
+ 	} else {
+ 		c->mon = selmon;
+ 		applyrules(c);
+@@ -1100,21 +1215,6 @@ maprequest(XEvent *e)
+ 		manage(ev->window, &wa);
+ }
+ 
+-void
+-monocle(Monitor *m)
+-{
+-	unsigned int n = 0;
+-	Client *c;
+-
+-	for (c = m->clients; c; c = c->next)
+-		if (ISVISIBLE(c))
+-			n++;
+-	if (n > 0) /* override layout symbol */
+-		snprintf(m->ltsymbol, sizeof m->ltsymbol, "[%d]", n);
+-	for (c = nexttiled(m->clients); c; c = nexttiled(c->next))
+-		resize(c, m->wx, m->wy, m->ww - 2 * c->bw, m->wh - 2 * c->bw, 0);
+-}
+-
+ void
+ motionnotify(XEvent *e)
+ {
+@@ -1185,6 +1285,7 @@ movemouse(const Arg *arg)
+ 		}
+ 	} while (ev.type != ButtonRelease);
+ 	XUngrabPointer(dpy, CurrentTime);
++	arrange(selmon);
+ 	if ((m = recttomon(c->x, c->y, c->w, c->h)) != selmon) {
+ 		sendmon(c, m);
+ 		selmon = m;
+@@ -1336,6 +1437,7 @@ resizemouse(const Arg *arg)
+ 	} while (ev.type != ButtonRelease);
+ 	XWarpPointer(dpy, None, c->win, 0, 0, 0, 0, c->w + c->bw - 1, c->h + c->bw - 1);
+ 	XUngrabPointer(dpy, CurrentTime);
++	arrange(selmon);
+ 	while (XCheckMaskEvent(dpy, EnterWindowMask, &ev));
+ 	if ((m = recttomon(c->x, c->y, c->w, c->h)) != selmon) {
+ 		sendmon(c, m);
+@@ -1511,6 +1613,24 @@ setlayout(const Arg *arg)
+ 		drawbar(selmon);
+ }
+ 
++void
++setlayouttag(const Arg *arg)
++{
++  int tag;
++  if (selmon->sel) {
++		for (tag = 0; tag < LENGTH(tags); tag++) {
++			if (!(selmon->sel->tags & 1 << tag)) continue;
++    	selmon->taglayouts[tag] = arg->i;
++		}
++  }
++
++	if (selmon->sel)
++		arrange(selmon);
++	else
++		drawbar(selmon);
++}
++
++
+ /* arg > 1.0 will set mfact absolutely */
+ void
+ setmfact(const Arg *arg)
+@@ -1530,6 +1650,7 @@ void
+ setup(void)
+ {
+ 	int i;
++	Monitor *m;
+ 	XSetWindowAttributes wa;
+ 	Atom utf8string;
+ 
+@@ -1570,6 +1691,13 @@ setup(void)
+ 	scheme = ecalloc(LENGTH(colors), sizeof(Clr *));
+ 	for (i = 0; i < LENGTH(colors); i++)
+ 		scheme[i] = drw_scm_create(drw, colors[i], 3);
++	/* init multilayouts */
++	for (m = mons; m && m->next != m; m = m->next) {
++		for (i = 0; i < LENGTH(tags); i++) {
++			m->taglayouts[i] = 1;
++		}
++	}
++
+ 	/* init bars */
+ 	updatebars();
+ 	updatestatus();
+@@ -1670,31 +1798,6 @@ tagmon(const Arg *arg)
+ 	sendmon(selmon->sel, dirtomon(arg->i));
+ }
+ 
+-void
+-tile(Monitor *m)
+-{
+-	unsigned int i, n, h, mw, my, ty;
+-	Client *c;
+-
+-	for (n = 0, c = nexttiled(m->clients); c; c = nexttiled(c->next), n++);
+-	if (n == 0)
+-		return;
+-
+-	if (n > m->nmaster)
+-		mw = m->nmaster ? m->ww * m->mfact : 0;
+-	else
+-		mw = m->ww;
+-	for (i = my = ty = 0, c = nexttiled(m->clients); c; c = nexttiled(c->next), i++)
+-		if (i < m->nmaster) {
+-			h = (m->wh - my) / (MIN(n, m->nmaster) - i);
+-			resize(c, m->wx, m->wy + my, mw - (2*c->bw), h - (2*c->bw), 0);
+-			my += HEIGHT(c);
+-		} else {
+-			h = (m->wh - ty) / (n - i);
+-			resize(c, m->wx + mw, m->wy + ty, m->ww - mw - (2*c->bw), h - (2*c->bw), 0);
+-			ty += HEIGHT(c);
+-		}
+-}
+ 
+ void
+ togglebar(const Arg *arg)
+@@ -2147,3 +2250,250 @@ main(int argc, char *argv[])
+ 	XCloseDisplay(dpy);
+ 	return EXIT_SUCCESS;
+ }
++
++
++void
++mlunfocusemptytags()
++{
++  int newtags;
++	int tag;
++	Client *c;
++	int taghasgtoneclient;
++	if (!selmon) return;
++
++	for (tag = 0; tag < LENGTH(tags); tag++) {
++		if (!(selmon->tagset[selmon->seltags] & 1 << tag)) continue;
++
++		taghasgtoneclient = 0;
++		for (c = selmon->clients; c; c = c->next) {
++			if (c->tags & 1 << selmon->seltags) {
++				taghasgtoneclient = 1;
++				break;
++			}
++		}
++
++		if (!taghasgtoneclient) {
++		  fprintf(stderr, "TAG IS EMPTY REMOVE %d\n", tag);
++    	//newtags = selmon->sel->tags ^ (1 << tag & TAGMASK);
++			//selmon->seltags = newtags;
++		}
++	}
++}
++
++
++void
++mlupdatebarsymbol()
++{
++  char foo[100];
++  int ntags = 0;
++  int tag;
++	for (tag = 0; tag < LENGTH(tags); tag++) {
++		if (!(selmon->tagset[selmon->seltags] & 1 << tag)) continue;
++		ntags++;
++	}
++	sprintf(selmon->ltsymbol, ntags > 1 ? "%s:" : "", selmon->lt[selmon->sellt]->symbol);
++
++  int nc;
++  Client *c;
++  for (tag = 0; tag < LENGTH(tags); tag++) {
++    if (!(selmon->tagset[selmon->seltags] & 1 << tag)) continue;
++
++    strcat(selmon->ltsymbol, " ");
++    strcat(selmon->ltsymbol, layouts[selmon->taglayouts[tag]].symbol);
++    strcat(selmon->ltsymbol, "[");
++    if (selmon->sel && (selmon->sel->tags & 1 << tag)) {
++  		for (c = nexttiled(selmon->clients); c; c = nexttiled(c->next)) {
++  			if (!(c->tags & 1 << tag)) continue;
++  			strcat(selmon->ltsymbol, c == selmon->sel ? "*" : ".");
++  		}
++    } else {
++      nc = 0;
++  		for (c = nexttiled(selmon->clients); c; c = nexttiled(c->next)) {
++  			if (!(c->tags & 1 << tag)) continue;
++  			nc++;
++  		}
++    	sprintf(foo, "%d", nc);
++    	strcat(selmon->ltsymbol, foo);
++    }
++    strcat(selmon->ltsymbol, "]");
++	}
++}
++
++
++
++
++
++
++
++
++
++
++
++void
++multilayouttile(Monitor *m, int *lttag, int ltx, int lty, int ltw, int lth)
++{
++	int i, n, h, mw, my, ty, nmaster, tag;
++	int nc;
++	Client *c;
++
++	nmaster = 1;
++
++	if (lttag) {
++		nc = 0;
++		for (c = nexttiled(m->clients); c; c = nexttiled(c->next)) {
++			if (!(c->tags & 1 << *lttag)) continue;
++			nc++;
++		}
++		if (nc > nmaster)
++			mw = nmaster ? ltw * m->mfact : 0;
++		else
++			mw = ltw;
++
++		for (i = my = ty = 0, c = nexttiled(m->clients); c; c = nexttiled(c->next)) {
++			if (!(c->tags & 1 << *lttag)) continue;
++			if (i < nmaster) {
++				h = (lth - my) / (MIN(nc, nmaster) - i);
++				resize(c, ltx, lty + my, mw, h, 0);
++				my += HEIGHT(c);
++			} else {
++				h = (lth - ty) / (nc - i);
++				resize(c, ltx + mw, lty + ty, ltw - mw, h, 0);
++				ty += HEIGHT(c);
++			}
++			i++;
++		}
++	} else {
++	  nc = 0;int my = 0; int ty = 0;
++		for (tag = 0; tag < LENGTH(tags); tag++) {
++			if (!(m->tagset[m->seltags] & 1 << tag)) continue;
++			nc++;
++		}
++		if (nc > nmaster)
++			mw = nmaster ? ltw * m->mfact : 0;
++		else
++			mw = ltw;
++
++
++    i = 0;
++		for (tag = 0; tag < LENGTH(tags); tag++) {
++			if (!(m->tagset[m->seltags] & 1 << tag)) continue;
++			if (tag < nmaster) {
++				h = (lth - my) / (MIN(nc, nmaster) - i);
++				layouts[m->taglayouts[tag]].arrange(m, &tag, ltx, lty + my, mw, h);
++				my += h;
++			} else {
++				h = (lth - ty) / (nc - i);
++				layouts[m->taglayouts[tag]].arrange(m, &tag, ltx + mw, lty + ty, ltw - mw, h);
++				ty += h;
++			}
++			i++;
++		}
++	}
++}
++
++
++
++void
++multilayoutvert(Monitor *m, int *lttag, int ltx, int lty, int ltw, int lth)
++{
++	Client *c;
++	int nc = 0;
++	int i = 0;
++	int tag;
++
++	if (lttag) {
++		for (c = nexttiled(m->clients); c; c = nexttiled(c->next)) {
++			if (!(c->tags & 1 << *lttag)) continue;
++			nc++;
++		}
++		for (c = nexttiled(m->clients); c; c = nexttiled(c->next)) {
++			if (!(c->tags & 1 << *lttag)) continue;
++			resize(c, ltx, lty + (i /(float) nc) * lth, ltw, lth/nc, 0);
++			i++;
++		}
++	} else {
++		for (tag = 0; tag < LENGTH(tags); tag++) {
++			if (!(m->tagset[m->seltags] & 1 << tag)) continue;
++			nc++;
++		}
++		for (tag = 0; tag < LENGTH(tags); tag++) {
++			if (!(m->tagset[m->seltags] & 1 << tag)) continue;
++			layouts[m->taglayouts[tag]].arrange(m, &tag, ltx, lty + (i /(float) nc) * lth, ltw, lth/nc);
++			i++;
++		}
++	}
++}
++
++void
++multilayouthoriz(Monitor *m, int *lttag, int ltx, int lty, int ltw, int lth)
++{
++	Client *c;
++	int nc = 0;
++	int i = 0;
++	int tag;
++
++	if (lttag) {
++		for (c = nexttiled(m->clients); c; c = nexttiled(c->next)) {
++			if (!(c->tags & 1 << *lttag)) continue;
++			nc++;
++		}
++		for (c = nexttiled(m->clients); c; c = nexttiled(c->next)) {
++			if (!(c->tags & 1 << *lttag)) continue;
++			resize(c, ltx + (i /(float) nc) * ltw, lty, ltw/nc, lth, 0);
++			i++;
++		}
++	} else {
++		for (tag = 0; tag < LENGTH(tags); tag++) {
++			if (!(m->tagset[m->seltags] & 1 << tag)) continue;
++			nc++;
++		}
++		for (tag = 0; tag < LENGTH(tags); tag++) {
++			if (!(m->tagset[m->seltags] & 1 << tag)) continue;
++			layouts[m->taglayouts[tag]].arrange(m, &tag, ltx + (i /(float) nc) * ltw, lty, ltw/nc, lth);
++			i++;
++		}
++	}
++}
++
++void
++multilayoutmonocle(Monitor *m, int *lttag, int ltx, int lty, int ltw, int lth)
++{
++	Client *c;
++	int tag;
++
++	if (lttag) {
++		for (c = nexttiled(m->clients); c; c = nexttiled(c->next)) {
++			if (!(c->tags & 1 << *lttag)) continue;
++			resize(c, ltx, lty, ltw, lth, 0);
++		}
++	} else {
++		for (tag = 0; tag < LENGTH(tags); tag++) {
++			if (!(m->tagset[m->seltags] & 1 << tag)) continue;
++			layouts[m->taglayouts[tag]].arrange(m, &tag, ltx, lty, ltw, lth);
++		}
++		// TODO: should this be in restack fn?
++		for (c = m->clients; c; c = c->next)
++			if (c->tags == m->sel->tags)
++				XRaiseWindow(dpy, c->win);
++	}
++}
++
++void
++multilayoutfloat(Monitor *m, int *lttag, int ltx, int lty, int ltw, int lth)
++{
++	Client *c;
++	int x, y, pad = 10;
++
++	if (lttag) {
++		for (c = m->clients; c; c = c->next) {
++			if (!(c->tags & 1 << *lttag)) continue;
++			x = MIN(ltx + pad + ltw - pad, MAX(ltx, c->x));
++			y = MIN(lty + pad + lth - pad, MAX(lty, c->y));
++			resize(c, x, y, MIN(c->w, ltw - pad - x), MIN(c->h, lth - pad - y), 0);
++		}
++	} else {
++		return;
++	}
++}
++
++
+-- 
+2.25.4
+
