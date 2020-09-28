@@ -11,6 +11,18 @@ Default keybinding added to config.def.h is Mod+x
  dwm.c        | 34 ++++++++++++++++++++++++++++++++++
  2 files changed, 35 insertions(+)
 
+diff --git a/config.def.h b/config.def.h
+index 1c0b587..67ec8ae 100644
+--- a/config.def.h
++++ b/config.def.h
+@@ -70,6 +70,7 @@ static Key keys[] = {
+ 	{ MODKEY,                       XK_d,      incnmaster,     {.i = -1 } },
+ 	{ MODKEY,                       XK_h,      setmfact,       {.f = -0.05} },
+ 	{ MODKEY,                       XK_l,      setmfact,       {.f = +0.05} },
++	{ MODKEY,                       XK_x,      transfer,       {0} },
+ 	{ MODKEY,                       XK_Return, zoom,           {0} },
+ 	{ MODKEY,                       XK_Tab,    view,           {0} },
+ 	{ MODKEY|ShiftMask,             XK_c,      killclient,     {0} },
 diff --git a/dwm.c b/dwm.c
 index 4465af1..ada794b 100644
 --- a/dwm.c
@@ -40,7 +52,7 @@ index 4465af1..ada794b 100644
 +		stail = c;
 +		i++;
 +	}
-+	if (selmon->sel->isfloating || i == 0) {
++	if (!selmon->sel || selmon->sel->isfloating || i == 0) {
 +		return;
 +	} else if (transfertostack) {
 +		selmon->nmaster = MIN(i, selmon->nmaster) - 1;
