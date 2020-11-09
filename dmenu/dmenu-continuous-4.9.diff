@@ -1,0 +1,303 @@
+From ed2cb44478824f15a7edd54f55c906eb7bbd84d5 Mon Sep 17 00:00:00 2001
+From: Miles Alan <m@milesalan.com>
+Date: Wed, 30 Sep 2020 08:16:47 -0500
+Subject: [PATCH] continuous patch: Modify input to be non-blocking and support
+ reloading options
+
+Read from stdin continously in parallel to X events (originally based on
+non-blocking stdin patch). Also adds support for control characters for
+reloading options (e.g. empyting list and setting curr/sel).
+
+Send at the begining of a line the following control characters:
+\f - Clear the current items prior to following line
+\a - Set the following line to be equal to sel
+\b - Set the following line to be equal to curr
+---
+ dmenu.1 |   6 +--
+ dmenu.c | 144 ++++++++++++++++++++++++++++++++++++++------------------
+ 2 files changed, 98 insertions(+), 52 deletions(-)
+
+diff --git a/dmenu.1 b/dmenu.1
+index 323f93c..a07532d 100644
+--- a/dmenu.1
++++ b/dmenu.1
+@@ -3,7 +3,7 @@
+ dmenu \- dynamic menu
+ .SH SYNOPSIS
+ .B dmenu
+-.RB [ \-bfiv ]
++.RB [ \-biv ]
+ .RB [ \-l
+ .IR lines ]
+ .RB [ \-m
+@@ -40,10 +40,6 @@ which lists programs in the user's $PATH and runs the result in their $SHELL.
+ .B \-b
+ dmenu appears at the bottom of the screen.
+ .TP
+-.B \-f
+-dmenu grabs the keyboard before reading stdin if not reading from a tty. This
+-is faster, but will lock up X until stdin reaches end\-of\-file.
+-.TP
+ .B \-i
+ dmenu matches menu items case insensitively.
+ .TP
+diff --git a/dmenu.c b/dmenu.c
+index 6b8f51b..cc87b04 100644
+--- a/dmenu.c
++++ b/dmenu.c
+@@ -1,5 +1,6 @@
+ /* See LICENSE file for copyright and license details. */
+ #include <ctype.h>
++#include <fcntl.h>
+ #include <locale.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+@@ -8,6 +9,8 @@
+ #include <time.h>
+ #include <unistd.h>
+ 
++
++#include <sys/select.h>
+ #include <X11/Xlib.h>
+ #include <X11/Xatom.h>
+ #include <X11/Xutil.h>
+@@ -31,6 +34,7 @@ enum { SchemeNorm, SchemeSel, SchemeOut, SchemeLast }; /* color schemes */
+ struct item {
+ 	char *text;
+ 	struct item *left, *right;
++	struct item *next;
+ 	int out;
+ };
+ 
+@@ -41,6 +45,7 @@ static int inputw = 0, promptw;
+ static int lrpad; /* sum of left and right padding */
+ static size_t cursor;
+ static struct item *items = NULL;
++static struct item *itemstail= NULL;
+ static struct item *matches, *matchend;
+ static struct item *prev, *curr, *next, *sel;
+ static int mon = -1, screen;
+@@ -173,6 +178,7 @@ drawmenu(void)
+ 		}
+ 	}
+ 	drw_map(drw, win, 0, 0, mw, mh);
++	XFlush(dpy);
+ }
+ 
+ static void
+@@ -220,6 +226,7 @@ match(void)
+ 	int i, tokc = 0;
+ 	size_t len, textsize;
+ 	struct item *item, *lprefix, *lsubstr, *prefixend, *substrend;
++	int preserve = 0;
+ 
+ 	strcpy(buf, text);
+ 	/* separate input text into tokens to be matched individually */
+@@ -230,19 +237,23 @@ match(void)
+ 
+ 	matches = lprefix = lsubstr = matchend = prefixend = substrend = NULL;
+ 	textsize = strlen(text) + 1;
+-	for (item = items; item && item->text; item++) {
++	for (item = items; item; item = item->next) {
+ 		for (i = 0; i < tokc; i++)
+ 			if (!fstrstr(item->text, tokv[i]))
+ 				break;
+ 		if (i != tokc) /* not all tokens match */
+ 			continue;
+ 		/* exact matches go first, then prefixes, then substrings */
+-		if (!tokc || !fstrncmp(text, item->text, textsize))
++		if (!tokc || !fstrncmp(text, item->text, textsize)) {
+ 			appenditem(item, &matches, &matchend);
+-		else if (!fstrncmp(tokv[0], item->text, len))
++			if (sel == item) preserve = 1;
++		} else if (!fstrncmp(tokv[0], item->text, len)) {
+ 			appenditem(item, &lprefix, &prefixend);
+-		else
++			if (sel == item) preserve = 1;
++		} else {
+ 			appenditem(item, &lsubstr, &substrend);
++			if (sel == item) preserve = 1;
++		}
+ 	}
+ 	if (lprefix) {
+ 		if (matches) {
+@@ -260,7 +271,9 @@ match(void)
+ 			matches = lsubstr;
+ 		matchend = substrend;
+ 	}
+-	curr = sel = matches;
++	if (!preserve)
++		curr = sel = matches;
++
+ 	calcoffsets();
+ }
+ 
+@@ -519,40 +532,11 @@ paste(void)
+ }
+ 
+ static void
+-readstdin(void)
+-{
+-	char buf[sizeof text], *p;
+-	size_t i, imax = 0, size = 0;
+-	unsigned int tmpmax = 0;
+-
+-	/* read each line from stdin and add it to the item list */
+-	for (i = 0; fgets(buf, sizeof buf, stdin); i++) {
+-		if (i + 1 >= size / sizeof *items)
+-			if (!(items = realloc(items, (size += BUFSIZ))))
+-				die("cannot realloc %u bytes:", size);
+-		if ((p = strchr(buf, '\n')))
+-			*p = '\0';
+-		if (!(items[i].text = strdup(buf)))
+-			die("cannot strdup %u bytes:", strlen(buf) + 1);
+-		items[i].out = 0;
+-		drw_font_getexts(drw->fonts, buf, strlen(buf), &tmpmax, NULL);
+-		if (tmpmax > inputw) {
+-			inputw = tmpmax;
+-			imax = i;
+-		}
+-	}
+-	if (items)
+-		items[i].text = NULL;
+-	inputw = items ? TEXTW(items[imax].text) : 0;
+-	lines = MIN(lines, i);
+-}
+-
+-static void
+-run(void)
++readevent(void)
+ {
+ 	XEvent ev;
+ 
+-	while (!XNextEvent(dpy, &ev)) {
++	while (XPending(dpy) && !XNextEvent(dpy, &ev)) {
+ 		if (XFilterEvent(&ev, None))
+ 			continue;
+ 		switch(ev.type) {
+@@ -580,6 +564,80 @@ run(void)
+ 	}
+ }
+ 
++static void
++readstdin(void)
++{
++	size_t max = 0;
++	char buf[sizeof text], *p, *maxstr;
++	struct item *item;
++	int ctrloffset = 0;
++
++
++	/* read each line from stdin and add it to the item list */
++	while (fgets(buf, sizeof buf, stdin)) {
++		if (!(item = malloc(sizeof *item)))
++			die("cannot malloc %u bytes:", sizeof *item);
++		if ((p = strchr(buf, '\n')))
++			*p = '\0';
++
++		ctrloffset = 0;
++		while (ctrloffset + 1 < sizeof buf && (
++			buf[ctrloffset] == '\a' ||
++			buf[ctrloffset] == '\b' ||
++			buf[ctrloffset] == '\f'
++		)) {
++			if (buf[ctrloffset] == '\a')
++				sel = item;
++			if (buf[ctrloffset] == '\b')
++				curr = item;
++			if (buf[ctrloffset] == '\f')
++				itemstail = sel = curr = items = NULL;
++			ctrloffset++;
++		}
++
++		if (!(item->text = strdup(buf+ctrloffset)))
++			die("cannot strdup %u bytes:", strlen(buf+ctrloffset)+1);
++		if (strlen(item->text) > max) {
++			max = strlen(maxstr = item->text);
++			inputw = maxstr ? TEXTW(maxstr) : 0;
++		}
++		item->out = 0;
++		item->next = NULL;
++
++		if (items == NULL)
++			items = item;
++		if (itemstail)
++			itemstail->next = item;
++		itemstail = item;
++	}
++	match();
++	drawmenu();
++}
++
++static void
++run(void)
++{
++	fd_set fds;
++	int flags, xfd = XConnectionNumber(dpy);
++
++	if ((flags = fcntl(0, F_GETFL)) == -1)
++		die("cannot get stdin control flags:");
++	if (fcntl(0, F_SETFL, flags | O_NONBLOCK) == -1)
++		die("cannot set stdin control flags:");
++	for (;;) {
++		FD_ZERO(&fds);
++		FD_SET(xfd, &fds);
++		if (!feof(stdin))
++			FD_SET(0, &fds);
++		if (select(xfd + 1, &fds, NULL, NULL, NULL) == -1)
++			die("cannot multiplex input:");
++		if (FD_ISSET(xfd, &fds))
++			readevent();
++		if (FD_ISSET(0, &fds))
++			readstdin();
++	}
++}
++
+ static void
+ setup(void)
+ {
+@@ -682,7 +740,7 @@ setup(void)
+ static void
+ usage(void)
+ {
+-	fputs("usage: dmenu [-bfiv] [-l lines] [-p prompt] [-fn font] [-m monitor]\n"
++	fputs("usage: dmenu [-biv] [-l lines] [-p prompt] [-fn font] [-m monitor]\n"
+ 	      "             [-nb color] [-nf color] [-sb color] [-sf color] [-w windowid]\n", stderr);
+ 	exit(1);
+ }
+@@ -691,7 +749,7 @@ int
+ main(int argc, char *argv[])
+ {
+ 	XWindowAttributes wa;
+-	int i, fast = 0;
++	int i;
+ 
+ 	for (i = 1; i < argc; i++)
+ 		/* these options take no arguments */
+@@ -700,8 +758,6 @@ main(int argc, char *argv[])
+ 			exit(0);
+ 		} else if (!strcmp(argv[i], "-b")) /* appears at the bottom of the screen */
+ 			topbar = 0;
+-		else if (!strcmp(argv[i], "-f"))   /* grabs keyboard before reading stdin */
+-			fast = 1;
+ 		else if (!strcmp(argv[i], "-i")) { /* case-insensitive item matching */
+ 			fstrncmp = strncasecmp;
+ 			fstrstr = cistrstr;
+@@ -752,13 +808,7 @@ main(int argc, char *argv[])
+ 		die("pledge");
+ #endif
+ 
+-	if (fast && !isatty(0)) {
+-		grabkeyboard();
+-		readstdin();
+-	} else {
+-		readstdin();
+-		grabkeyboard();
+-	}
++	grabkeyboard();
+ 	setup();
+ 	run();
+ 
+-- 
+2.25.4
+
