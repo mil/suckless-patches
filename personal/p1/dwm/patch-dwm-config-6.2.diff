@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000..dea41ad
 --- /dev/null
 +++ b/config.h
-@@ -0,0 +1,151 @@
+@@ -0,0 +1,153 @@
 +/* See LICENSE file for copyright and license details. */
 +#include <X11/XF86keysym.h>
 +
@@ -79,6 +79,7 @@ index 0000000..dea41ad
 +/* commands */
 +static char dmenumon[2] = "0"; /* component of dmenucmd, manipulated in spawn() */
 +static const char *dmenucmd[] = { "dmenu_run", "-m", dmenumon, "-fn", dmenufont, "-nb", col_gray1, "-nf", col_gray3, "-sb", col_cyan, "-sf", col_gray4, NULL };
++static const char *dmenupwdcmd[] = { "pwdhash.py", "xprompt", NULL };
 +static const char *termcmd[]  = { "st", NULL };
 +static const char *cmdbacklightup[]  = { "light", "-A", "10", NULL };
 +static const char *cmdbacklightdown[]  = { "light", "-U", "10", NULL };
@@ -95,6 +96,7 @@ index 0000000..dea41ad
 +	{ 0,                            XF86XK_AudioMute,         spawn,          {.v = cmdvolmute } },
 +
 +	{ MODKEY,                       XK_p,                    spawn,          {.v = dmenucmd } },
++	{ MODKEY|ShiftMask,             XK_p,                    spawn,          {.v = dmenupwdcmd } },
 +	{ MODKEY|ShiftMask,             XK_Return,               spawn,          {.v = termcmd } },
 +	{ MODKEY,                       XK_b,                    togglebar,      {0} },
 +	{ MODKEY,                       XK_j,                    focusstack,     {.i = +1 } },

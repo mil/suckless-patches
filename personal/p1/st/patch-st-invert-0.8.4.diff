@@ -1,14 +1,3 @@
-From f79565ec4de495b1697c41dafd9e40c69c2a524a Mon Sep 17 00:00:00 2001
-From: Miles Alan <m@milesalan.com>
-Date: Thu, 27 Aug 2020 15:57:29 -0500
-Subject: [PATCH] Add invert function which changes the current colors' RGB
- values to be inversed
-
----
- config.def.h |  1 +
- x.c          | 37 ++++++++++++++++++++++++++++++++++---
- 2 files changed, 35 insertions(+), 3 deletions(-)
-
 diff --git a/config.def.h b/config.def.h
 index 6f05dce..8669717 100644
 --- a/config.def.h
@@ -22,7 +11,7 @@ index 6f05dce..8669717 100644
  
  /*
 diff --git a/x.c b/x.c
-index 210f184..598edd8 100644
+index 210f184..cda088a 100644
 --- a/x.c
 +++ b/x.c
 @@ -59,6 +59,7 @@ static void zoom(const Arg *);
@@ -92,6 +81,11 @@ index 210f184..598edd8 100644
  	/* Intelligent cleaning up of the borders. */
  	if (x == 0) {
  		xclear(0, (y == 0)? 0 : winy, borderpx,
--- 
-2.25.4
-
+@@ -2043,6 +2074,7 @@ run:
+ 	xinit(cols, rows);
+ 	xsetenv();
+ 	selinit();
++	if (getenv("ST_INVERT") && 0 == strcmp("1", getenv("ST_INVERT"))) invert(NULL);
+ 	run();
+ 
+ 	return 0;
