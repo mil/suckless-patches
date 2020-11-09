@@ -1,0 +1,45 @@
+commit cc2ce5e755890bbbf81ef156c957d55c9a574d36
+Author: Miles Alan <m@milesalan.com>
+Date:   Tue Oct 13 21:43:49 2020 -0500
+
+    Modal patch from efe modified to apply cleanly with externalpipe
+
+diff --git a/surf.c b/surf.c
+index e7d731d..b83a596 100644
+--- a/surf.c
++++ b/surf.c
+@@ -175,6 +175,8 @@ static void spawn(Client *c, const Arg *a);
+ static void msgext(Client *c, char type, const Arg *a);
+ static void destroyclient(Client *c);
+ static void cleanup(void);
++static void insert(Client *c, const Arg *a);
++static int insertmode = 0;
+ 
+ /* GTK/WebKit */
+ static WebKitWebView *newview(Client *c, WebKitWebView *rv);
+@@ -1408,7 +1410,11 @@ winevent(GtkWidget *w, GdkEvent *e, Client *c)
+ 		updatetitle(c);
+ 		break;
+ 	case GDK_KEY_PRESS:
+-		if (!curconfig[KioskMode].val.i) {
++		if (!curconfig[KioskMode].val.i &&
++		    !insertmode ||
++		    CLEANMASK(e->key.state) == (MODKEY|GDK_SHIFT_MASK) ||
++		    CLEANMASK(e->key.state) == (MODKEY) ||
++		    gdk_keyval_to_lower(e->key.keyval) == (GDK_KEY_Escape)) {
+ 			for (i = 0; i < LENGTH(keys); ++i) {
+ 				if (gdk_keyval_to_lower(e->key.keyval) ==
+ 				    keys[i].keyval &&
+@@ -2022,6 +2028,12 @@ find(Client *c, const Arg *a)
+ 	}
+ }
+ 
++void
++insert(Client *c, const Arg *a)
++{
++		insertmode = (a->i);
++}
++
+ void
+ clicknavigate(Client *c, const Arg *a, WebKitHitTestResult *h)
+ {

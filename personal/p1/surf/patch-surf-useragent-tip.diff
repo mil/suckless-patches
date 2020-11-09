@@ -1,0 +1,60 @@
+From 4e7a45069b668a379bc59ac029952b88430326e6 Mon Sep 17 00:00:00 2001
+From: Miles Alan <m@milesalan.com>
+Date: Tue, 13 Oct 2020 22:50:23 -0500
+Subject: [PATCH] More reliable setting of USER_AGENT header via SURF_USERAGENT
+ env var
+
+---
+ libsurf-webext.c | 15 +++++++++++++++
+ surf.c           |  6 ++++++
+ 2 files changed, 21 insertions(+)
+
+diff --git a/libsurf-webext.c b/libsurf-webext.c
+index ec9a235..4b5b468 100644
+--- a/libsurf-webext.c
++++ b/libsurf-webext.c
+@@ -105,9 +105,24 @@ readpipe(GIOChannel *s, GIOCondition c, gpointer unused)
+ 	return TRUE;
+ }
+ 
++const char * UA_HEADER_VALUE = NULL;
++const char * UA_HEADER = "USER-AGENT";
++static gboolean
++web_page_send_request (WebKitWebPage *wp, WebKitURIRequest *r, WebKitURIResponse *rr, gpointer unused)
++{
++		SoupMessageHeaders *headers = webkit_uri_request_get_http_headers(r);
++		if (headers) {
++			if (!UA_HEADER_VALUE) { UA_HEADER_VALUE = getenv("SURF_USERAGENT"); }
++			soup_message_headers_remove(headers, UA_HEADER);
++			soup_message_headers_replace(headers, UA_HEADER, UA_HEADER_VALUE);
++		}
++		return FALSE;
++}
++
+ static void
+ webpagecreated(WebKitWebExtension *e, WebKitWebPage *wp, gpointer unused)
+ {
++	g_signal_connect_object (wp, "send-request", G_CALLBACK (web_page_send_request), NULL, 0);
+ 	Page *p = newpage(wp);
+ }
+ 
+diff --git a/surf.c b/surf.c
+index 5c1c9c2..8db0066 100644
+--- a/surf.c
++++ b/surf.c
+@@ -2066,6 +2066,12 @@ main(int argc, char *argv[])
+ 
+ 	memset(&arg, 0, sizeof(arg));
+ 
++	char * ua = getenv("SURF_USERAGENT");
++	if (!ua || !strcmp(ua, "")) {
++		fprintf(stderr, "SURF_USERAGENT header must be set, used by libsurf webext\n");
++		exit(1);
++	}
++
+ 	/* command line args */
+ 	ARGBEGIN {
+ 	case 'a':
+-- 
+2.25.4
+
