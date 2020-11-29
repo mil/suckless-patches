@@ -1,9 +1,19 @@
+From 2dd7df0bdff25b68ad8d2847965d567f2967a554 Mon Sep 17 00:00:00 2001
+From: Miles Alan <m@milesalan.com>
+Date: Sun, 29 Nov 2020 11:25:39 -0600
+Subject: [PATCH] config.def.h
+
+---
+ config.h | 424 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 424 insertions(+)
+ create mode 100644 config.h
+
 diff --git a/config.h b/config.h
 new file mode 100644
-index 0000000..7863544
+index 0000000..80f37bf
 --- /dev/null
 +++ b/config.h
-@@ -0,0 +1,419 @@
+@@ -0,0 +1,424 @@
 +/* See LICENSE file for copyright and license details. */
 +
 +/*
@@ -91,13 +101,18 @@ index 0000000..7863544
 +  "#3777E6", /* 12: brblue   */
 +  "#AD00A1", /* 13: brmagenta*/
 +  "#1FAAAA", /* 14: brcyan   */
-+  "#ffffff"  /* 15: brwhite  */
++  "#888888", /* 15: brwhite  */
++
++	[255] = 0,
++
++	/* more colors can be added after 255 to use with DefaultXX */
++	"#ffffff",
 +};
 +unsigned int defaultfg = 0;
-+unsigned int defaultbg = 15;
++unsigned int defaultbg = 256;
 +unsigned int defaultcs = 0;
-+unsigned int defaultrcs = 15;
-+static unsigned int cursorshape = 2;
++unsigned int defaultrcs = 256;
++static unsigned int cursorshape = 6;
 +static unsigned int cols = 80;
 +static unsigned int rows = 24;
 +static unsigned int mouseshape = XC_xterm;
@@ -423,3 +438,6 @@ index 0000000..7863544
 +	" !\"#$%&'()*+,-./0123456789:;<=>?"
 +	"@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_"
 +	"`abcdefghijklmnopqrstuvwxyz{|}~";
+-- 
+2.26.2
+
