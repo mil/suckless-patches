@@ -1,19 +1,19 @@
-From 2dd7df0bdff25b68ad8d2847965d567f2967a554 Mon Sep 17 00:00:00 2001
+From 51b2a0b7593482117c6917e83573ac0f10a8ae8c Mon Sep 17 00:00:00 2001
 From: Miles Alan <m@milesalan.com>
-Date: Sun, 29 Nov 2020 11:25:39 -0600
-Subject: [PATCH] config.def.h
+Date: Mon, 7 Dec 2020 21:45:12 -0600
+Subject: [PATCH] conf
 
 ---
- config.h | 424 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 424 insertions(+)
+ config.h | 428 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 428 insertions(+)
  create mode 100644 config.h
 
 diff --git a/config.h b/config.h
 new file mode 100644
-index 0000000..80f37bf
+index 0000000..d4ecc54
 --- /dev/null
 +++ b/config.h
-@@ -0,0 +1,424 @@
+@@ -0,0 +1,429 @@
 +/* See LICENSE file for copyright and license details. */
 +
 +/*
@@ -21,7 +21,11 @@ index 0000000..80f37bf
 + *
 + * font: see http://freedesktop.org/software/fontconfig/fontconfig-user.html
 + */
-+static char *font = "Liberation Mono:pixelsize=15:antialias=true:autohint=true";
++static char *fonts[] = {
++  "tewi:pixelsize=12:antialias=true:autohint=true",
++  "Liberation Mono:pixelsize=12:antialias=true:autohint=true",
++};
++static int fonts_current = 0;
 +static int borderpx = 2;
 +
 +/*
@@ -167,6 +171,7 @@ index 0000000..80f37bf
 +	{ ShiftMask,            XK_Insert,      selpaste,       {.i =  0} },
 +	{ TERMMOD,              XK_Num_Lock,    numlock,        {.i =  0} },
 +	{ TERMMOD,              XK_X,           invert,         {.i =  0} },
++	{ TERMMOD,              XK_S,           cyclefonts,     {.i =  0} },
 +};
 +
 +/*
