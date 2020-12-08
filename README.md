@@ -26,6 +26,7 @@ All patches at the top-level are in git prefixed (`-p1`) format.
 
 - [St externalpipe-signal](https://st.suckless.org/patches/externalpipe-signal/): Allows utilizing an externalpipe command on the SIGUSR1 signal.
 - [St invert](https://st.suckless.org/patches/invert/): Allows inverting the current colorscheme of st via keybinding.
+- [St cyclefonts](https://st.suckless.org/patches/cyclefonts/): Rotate between a set of fonts on keybinding instead of always using same font.
 
 **surf**
 
