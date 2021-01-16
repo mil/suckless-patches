@@ -1,19 +1,19 @@
-From cbc08b9ce651abc3d0b2495d36d9131932b55aa7 Mon Sep 17 00:00:00 2001
+From a6fad4c12c80ec766dcc27e8ccb34de0e4eeabfc Mon Sep 17 00:00:00 2001
 From: Miles Alan <m@milesalan.com>
-Date: Tue, 13 Oct 2020 22:14:37 -0500
-Subject: [PATCH] config.h
+Date: Sat, 16 Jan 2021 11:04:18 -0500
+Subject: [PATCH] Config
 
 ---
- config.h | 212 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 212 insertions(+)
+ config.h | 217 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 217 insertions(+)
  create mode 100644 config.h
 
 diff --git a/config.h b/config.h
 new file mode 100644
-index 0000000..0ec5453
+index 0000000..ae4b2b5
 --- /dev/null
 +++ b/config.h
-@@ -0,0 +1,212 @@
+@@ -0,0 +1,217 @@
 +/* modifier 0 means no modifier */
 +static int surfuseragent    = 1;  /* Append Surf version to default WebKit user agent */
 +static char *fulluseragent  = ""; /* Or override the whole user agent string */
@@ -22,6 +22,11 @@ index 0000000..0ec5453
 +static char *certdir        = "~/.surf/certificates/";
 +static char *cachedir       = "~/.surf/cache/";
 +static char *cookiefile     = "~/.surf/cookies.txt";
++static char **plugindirs    = (char*[]){
++	"~/.surf/plugins/",
++	LIBPREFIX "/mozilla/plugins/",
++	NULL
++};
 +
 +// For externalpipe
 +static char *linkselect_curwin [] = { "/bin/sh", "-c",
@@ -227,5 +232,5 @@ index 0000000..0ec5453
 +	{ OnMedia,      MODKEY,         1,      clickexternplayer, { 0 },       1 },
 +};
 -- 
-2.25.4
+2.26.2
 
