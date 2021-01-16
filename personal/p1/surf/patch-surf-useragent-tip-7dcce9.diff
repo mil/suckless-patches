@@ -1,0 +1,67 @@
+From 9c9100a046d2d6b58e26e9f15834c1ebd1b83c09 Mon Sep 17 00:00:00 2001
+From: Miles Alan <m@milesalan.com>
+Date: Sat, 16 Jan 2021 11:02:01 -0500
+Subject: [PATCH] Set useragent in webext based on SURF_USERAGENT
+
+---
+ surf.c        |  6 ++++++
+ webext-surf.c | 21 +++++++++++++++++++++
+ 2 files changed, 27 insertions(+)
+
+diff --git a/surf.c b/surf.c
+index ac832ff..9b888a8 100644
+--- a/surf.c
++++ b/surf.c
+@@ -2009,6 +2009,12 @@ main(int argc, char *argv[])
+ 	Arg arg;
+ 	Client *c;
+ 
++	char * ua = getenv("SURF_USERAGENT");
++	if (!ua || !strcmp(ua, "")) {
++		fprintf(stderr, "SURF_USERAGENT header must be set, used by libsurf webext\n");
++		exit(1);
++	}
++
+ 	memset(&arg, 0, sizeof(arg));
+ 
+ 	/* command line args */
+diff --git a/webext-surf.c b/webext-surf.c
+index d087219..b2f9222 100644
+--- a/webext-surf.c
++++ b/webext-surf.c
+@@ -87,11 +87,32 @@ readsock(GIOChannel *s, GIOCondition c, gpointer unused)
+ 	return TRUE;
+ }
+ 
++const char * UA_HEADER_VALUE = NULL;
++const char * UA_HEADER = "USER-AGENT";
++static gboolean
++web_page_send_request (WebKitWebPage *wp, WebKitURIRequest *r, WebKitURIResponse *rr, gpointer unused)
++{
++		SoupMessageHeaders *headers = webkit_uri_request_get_http_headers(r);
++		if (headers) {
++			if (!UA_HEADER_VALUE) { UA_HEADER_VALUE = getenv("SURF_USERAGENT"); }
++			soup_message_headers_remove(headers, UA_HEADER);
++			soup_message_headers_replace(headers, UA_HEADER, UA_HEADER_VALUE);
++		}
++		return FALSE;
++}
++
++static void
++webpagecreated(WebKitWebExtension *e, WebKitWebPage *wp, gpointer unused)
++{
++	g_signal_connect_object (wp, "send-request", G_CALLBACK (web_page_send_request), NULL, 0);
++}
++
+ G_MODULE_EXPORT void
+ webkit_web_extension_initialize_with_user_data(WebKitWebExtension *e,
+                                                const GVariant *gv)
+ {
+ 	GIOChannel *gchansock;
++	g_signal_connect(e, "page-created", G_CALLBACK(webpagecreated), NULL);
+ 
+ 	webext = e;
+ 
+-- 
+2.26.2
+
