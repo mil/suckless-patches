@@ -1,9 +1,9 @@
 diff --git a/config.h b/config.h
 new file mode 100644
-index 0000000..dea41ad
+index 0000000..9146dc2
 --- /dev/null
 +++ b/config.h
-@@ -0,0 +1,153 @@
+@@ -0,0 +1,158 @@
 +/* See LICENSE file for copyright and license details. */
 +#include <X11/XF86keysym.h>
 +
@@ -33,7 +33,11 @@ index 0000000..dea41ad
 +static const int swallowfloating = 1;
 +
 +/* tagging */
-+static const char *tags[] = { "1", "2", "3", "4", "5", "6", "7", "8", "9" };
++/*static const char *tags[] = { "1", "2", "3", "4", "5", "6", "7", "8", "9" };*/
++#define MAX_TAGNAME_LEN 14		/* excludes TAG_PREPEND */
++#define TAG_PREPEND "%1i:"		/* formatted as 2 chars */
++#define MAX_TAGLEN 16			/* altogether */
++static char tags[][MAX_TAGLEN] = { "1", "2", "3", "4", "5", "6", "7", "8", "9" };
 +
 +static const Rule rules[] = {
 +	/* class     instance  title           tags mask  isfloating  isterminal  noswallow  monitor */
@@ -127,6 +131,7 @@ index 0000000..dea41ad
 +	{ MODKEY,                       XK_period,               focusmon,       {.i = +1 } },
 +	{ MODKEY|ShiftMask,             XK_comma,                tagmon,         {.i = -1 } },
 +	{ MODKEY|ShiftMask,             XK_period,               tagmon,         {.i = +1 } },
++	{ MODKEY,                       XK_n,                    nametag,        {0} },
 +	{ MODKEY|ShiftMask,             XK_q,                    quit,           {0} },
 +
 +	TAGKEYS(                        XK_1,                      0)
