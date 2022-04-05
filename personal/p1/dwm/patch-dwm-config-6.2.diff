@@ -1,9 +1,9 @@
 diff --git a/config.h b/config.h
 new file mode 100644
-index 0000000..9146dc2
+index 0000000..a72a481
 --- /dev/null
 +++ b/config.h
-@@ -0,0 +1,158 @@
+@@ -0,0 +1,159 @@
 +/* See LICENSE file for copyright and license details. */
 +#include <X11/XF86keysym.h>
 +
@@ -40,10 +40,11 @@ index 0000000..9146dc2
 +static char tags[][MAX_TAGLEN] = { "1", "2", "3", "4", "5", "6", "7", "8", "9" };
 +
 +static const Rule rules[] = {
-+	/* class     instance  title           tags mask  isfloating  isterminal  noswallow  monitor */
-+	{ "St",      NULL,     NULL,           0,         0,          1,           0,        -1 },
-+	{ "st",      NULL,     NULL,           0,         0,          1,           0,        -1 },
-+	{ NULL,      NULL,     "Event Tester", 0,         0,          0,           1,        -1 }, /* xev */
++	/* class     instance  title           tags mask  isfloating  isterminal  noswallow  monitor  iskbd */
++	{ "St",      NULL,     NULL,           0,         0,          1,           0,        -1,  0 },
++	{ "st",      NULL,     NULL,           0,         0,          1,           0,        -1,  0 },
++	{ "svkbd",   NULL,     NULL,           0,         0,          1,           0,        -1,  1 },
++	{ NULL,      NULL,     "Event Tester", 0,         0,          0,           1,        -1,  0 }, /* xev */
 +};
 +
 +/* layout(s) */
