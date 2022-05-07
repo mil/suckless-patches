@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000..a72a481
 --- /dev/null
 +++ b/config.h
-@@ -0,0 +1,159 @@
+@@ -0,0 +1,160 @@
 +/* See LICENSE file for copyright and license details. */
 +#include <X11/XF86keysym.h>
 +
@@ -99,6 +99,7 @@ index 0000000..a72a481
 +	{ 0,                            XF86XK_AudioRaiseVolume,  spawn,          {.v = cmdvolup} },
 +	{ 0,                            XF86XK_AudioLowerVolume,  spawn,          {.v = cmdvoldown } },
 +	{ 0,                            XF86XK_AudioMute,         spawn,          {.v = cmdvolmute } },
++	{ 0,                            XF86XK_PowerOff,          spawn,          {.v = cmdvolmute } },
 +
 +	{ MODKEY,                       XK_p,                    spawn,          {.v = dmenucmd } },
 +	{ MODKEY|ShiftMask,             XK_p,                    spawn,          {.v = dmenupwdcmd } },
