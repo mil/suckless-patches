@@ -1,0 +1,25 @@
+commit 6016da6a485f4c2fbcbc2e29add9a59a795c8de9
+Author: Miles Alan <m@milesalan.com>
+Date:   Wed May 18 10:17:19 2022 -0400
+
+    manage: For isfloating/oldstate check/set, ensure trans client actually exists
+    
+    In certain instances trans may be set to a window that doesn't actually
+    map to a client via wintoclient; in this case it doesn't make sense
+    to set isfloating/oldstate since trans is essentially invalid in that
+    case / correlates to the above condition check where trans is set /
+    XGetTransientForHint is called.
+
+diff --git a/dwm.c b/dwm.c
+index 4465af1..731f7ce 100644
+--- a/dwm.c
++++ b/dwm.c
+@@ -1059,7 +1059,7 @@ manage(Window w, XWindowAttributes *wa)
+ 	XSelectInput(dpy, w, EnterWindowMask|FocusChangeMask|PropertyChangeMask|StructureNotifyMask);
+ 	grabbuttons(c, 0);
+ 	if (!c->isfloating)
+-		c->isfloating = c->oldstate = trans != None || c->isfixed;
++		c->isfloating = c->oldstate = t || c->isfixed;
+ 	if (c->isfloating)
+ 		XRaiseWindow(dpy, c->win);
+ 	attach(c);
