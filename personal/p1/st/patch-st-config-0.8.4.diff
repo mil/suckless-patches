@@ -22,8 +22,8 @@ index 0000000..d4ecc54
 + * font: see http://freedesktop.org/software/fontconfig/fontconfig-user.html
 + */
 +static char *fonts[] = {
-+  "tewi:pixelsize=12:antialias=true:autohint=true",
-+  "Liberation Mono:pixelsize=12:antialias=true:autohint=true",
++  "Terminus:pixelsize=12:antialias=true:autohint=true",
++  "Liberation Mono:pixelsize=14:antialias=true:autohint=true",
 +};
 +static int fonts_current = 0;
 +static int borderpx = 2;
