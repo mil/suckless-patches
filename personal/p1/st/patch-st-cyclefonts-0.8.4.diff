@@ -23,7 +23,7 @@ index 210f184..803ec37 100644
 +	}
 +	usedfont = fonts[fonts_current];
 +	xloadfonts(fonts[fonts_current], 0);
-+	redraw();
++	cresize(win.w, win.h); redraw();
 +}
 +
  void
