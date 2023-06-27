@@ -1,0 +1,13 @@
+diff --git a/x.c b/x.c
+index 210f184..f7162c4 100644
+--- a/x.c
++++ b/x.c
+@@ -2043,6 +2043,8 @@ run:
+ 	xinit(cols, rows);
+ 	xsetenv();
+ 	selinit();
++	if (getenv("ST_FONT") != NULL && getenv("ST_FONT")[0] == '1') { cyclefonts(NULL); }
++	if (getenv("ST_INVERT") != NULL && getenv("ST_INVERT")[0] == '1') { invert(NULL); }
+ 	run();
+ 
+ 	return 0;
