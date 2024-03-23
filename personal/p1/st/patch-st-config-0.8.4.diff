@@ -1,19 +1,9 @@
-From 51b2a0b7593482117c6917e83573ac0f10a8ae8c Mon Sep 17 00:00:00 2001
-From: Miles Alan <m@milesalan.com>
-Date: Mon, 7 Dec 2020 21:45:12 -0600
-Subject: [PATCH] conf
-
----
- config.h | 428 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 428 insertions(+)
- create mode 100644 config.h
-
 diff --git a/config.h b/config.h
 new file mode 100644
-index 0000000..d4ecc54
+index 0000000..4b6520a
 --- /dev/null
 +++ b/config.h
-@@ -0,0 +1,429 @@
+@@ -0,0 +1,430 @@
 +/* See LICENSE file for copyright and license details. */
 +
 +/*
@@ -165,6 +155,7 @@ index 0000000..d4ecc54
 +	{ TERMMOD,              XK_K,           zoom,           {.f = +1} },
 +	{ TERMMOD,              XK_J,           zoom,           {.f = -1} },
 +	{ TERMMOD,              XK_Home,        zoomreset,      {.f =  0} },
++	{ TERMMOD,              XK_U,           copyurl,        {.i =  0} },
 +	{ TERMMOD,              XK_C,           clipcopy,       {.i =  0} },
 +	{ TERMMOD,              XK_V,           clippaste,      {.i =  0} },
 +	{ TERMMOD,              XK_Y,           selpaste,       {.i =  0} },
@@ -443,6 +434,3 @@ index 0000000..d4ecc54
 +	" !\"#$%&'()*+,-./0123456789:;<=>?"
 +	"@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_"
 +	"`abcdefghijklmnopqrstuvwxyz{|}~";
--- 
-2.26.2
-
