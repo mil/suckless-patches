@@ -1,9 +1,9 @@
 diff --git a/config.h b/config.h
 new file mode 100644
-index 0000000..4b6520a
+index 0000000..a51c1f2
 --- /dev/null
 +++ b/config.h
-@@ -0,0 +1,430 @@
+@@ -0,0 +1,437 @@
 +/* See LICENSE file for copyright and license details. */
 +
 +/*
@@ -12,9 +12,8 @@ index 0000000..4b6520a
 + * font: see http://freedesktop.org/software/fontconfig/fontconfig-user.html
 + */
 +static char *fonts[] = {
-+  "Liberation Mono:pixelsize=18:antialias=true:autohint=true",
 +  "Terminus:pixelsize=12:antialias=true:autohint=true",
-+};
++  "Liberation Mono:pixelsize=18:antialias=true:autohint=true", };
 +static int fonts_current = 0;
 +static int borderpx = 2;
 +
@@ -79,33 +78,41 @@ index 0000000..4b6520a
 + */
 +unsigned int tabspaces = 8;
 +
++/* Terminal colors (16 first used in escape sequence) */
 +static const char *colorname[] = {
-+  "#000000", /*  0: black    */
-+  "#dd1204", /*  1: red      */
-+  "#00C918", /*  2: green    */
-+  "#cc9900", /*  3: yellow   */
-+  "#3777E6", /*  4: blue     */
-+  "#AD00A1", /*  5: magenta  */
-+  "#1FAAAA", /*  6: cyan     */
-+  "#e8e8e8", /*  7: white    */
-+  "#000000", /*  8: brblack  */
-+  "#dd1204", /*  9: brred    */
-+  "#00C918", /* 10: brgreen  */
-+  "#ABA800", /* 11: bryellow */
-+  "#3777E6", /* 12: brblue   */
-+  "#AD00A1", /* 13: brmagenta*/
-+  "#1FAAAA", /* 14: brcyan   */
-+  "#888888", /* 15: brwhite  */
++	/* 8 normal colors */
++	"black",
++	"red3",
++	"green3",
++	"yellow3",
++	"blue2",
++	"magenta3",
++	"cyan3",
++	"gray90",
++
++	/* 8 bright colors */
++	"gray50",
++	"red",
++	"green",
++	"yellow",
++	"#5c5cff",
++	"magenta",
++	"cyan",
++	"white",
 +
 +	[255] = 0,
 +
 +	/* more colors can be added after 255 to use with DefaultXX */
-+	"#ffffff",
++	"#cccccc",
++	"#555555",
 +};
-+unsigned int defaultfg = 0;
-+unsigned int defaultbg = 256;
-+unsigned int defaultcs = 0;
-+unsigned int defaultrcs = 256;
++
++
++
++unsigned int defaultfg = 7;
++unsigned int defaultbg = 0;
++static unsigned int defaultcs = 256;
++static unsigned int defaultrcs = 257;
 +static unsigned int cursorshape = 6;
 +static unsigned int cols = 80;
 +static unsigned int rows = 24;
